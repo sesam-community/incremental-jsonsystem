@@ -134,7 +134,7 @@ if __name__ == '__main__':
     URL_PATTERN = get_var('URL_PATTERN')
     UPDATED_PROPERTY = get_var('UPDATED_PROPERTY')
     auth_type = get_var('AUTHENTICATION')
-    config = get_var('CONFIG')
+    config = json.loads(get_var('CONFIG'))
     if auth_type.upper() == 'OAUTH2':
         SYSTEM = Oauth2System(config)
     else:
