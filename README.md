@@ -3,7 +3,7 @@ An example of system config:
 
 ```json
 {
-  "_id": "incremental-jsonsystem",
+  "_id": "incremental-jsonsystem_id",
   "type": "system:microservice",
   "connect_timeout": 60,
   "docker": {
@@ -18,7 +18,7 @@ An example of system config:
           "token_url": "url"
         },
         "..": ".."
-      }
+      },
       "UPDATED_PROPERTY": "sequenceNumber"
     },
     "image": "sesam/incremental-jsonsystem",
@@ -27,12 +27,12 @@ An example of system config:
 }
 ```
 
-This microservice should support incremental Sesam json protocal. We will add one property *_updated* whose value is copied from updated_property.
+This microservice is used to support incremental Sesam json protocal when the external system dont support it. We will add one property *_updated* whose value is copied from *updated_property*.
 
-Node send a request, such as "http://incremental-urlsystem:5000/path". The request will be forward to a new url defined in URL_PATTERN. The optional variables in URL_PATTERN are:
-  - __path__: the relative path in the request
-  - __since__: the since parameter gotten from the request
-  - __limit__: the limit parameter gotten from the request. If the web service don't support limit, we will sort the response and only return top entities back.
+A pipe send a request to the microservice, such as "http://incremental-urlsystem:5000/relative_path". The request will be forward to a new url defined in URL_PATTERN. The optional variables in URL_PATTERN are:
+  - \_\_path\_\_: the relative path of the request
+  - \_\_since\_\_: the since parameter gotten from the request
+  - \_\_limit\_\_: the limit parameter gotten from the request. If the web service don't support limit, we will sort the response and only return top entities back.
 
 
 Supported authentication method:
