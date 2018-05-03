@@ -1,6 +1,4 @@
 # incremental-urlsystem
-sesam Http->Ftp microservice
-
 An example of system config: 
 
 ```json
@@ -16,7 +14,7 @@ An example of system config:
         "oauth2": {
           "client_id": "id",
           "client_secret": "secret",
-          "resource": "resource"
+          "resource": "resource",
           "token_url": "url"
         },
         "..": ".."
