@@ -21,7 +21,7 @@ An example of system config:
       }
       "UPDATED_PROPERTY": "sequenceNumber"
     },
-    "image": "sesam/incremental-urlsystem",
+    "image": "sesam/incremental-jsonsystem",
   },
   "read_timeout": 7200,
 }
@@ -36,5 +36,5 @@ Node send a request, such as "http://incremental-urlsystem:5000/path". The reque
 
 
 Supported authentication method:
-  - None
+  - if it is empty, we use it as an url service without any authentication method
   - oauth2
