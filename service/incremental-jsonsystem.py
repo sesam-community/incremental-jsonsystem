@@ -14,7 +14,7 @@ SYSTEM = None
 FULL_URL_PATTERN = None
 UPDATED_URL_PATTERN = None
 UPDATED_PROPERTY = None
-OFFSET_BIGGER_AND_EQUAL = False
+OFFSET_BIGGER_AND_EQUAL = None
 
 
 def get_updated_property(json):
@@ -79,7 +79,7 @@ def get_data(path):
     limit = request.args.get('limit')
     if since:
         url = UPDATED_URL_PATTERN.replace('__path__', path)
-        if OFFSET_BIGGER_AND_EQUAL:
+        if OFFSET_BIGGER_AND_EQUAL.upper() == "TRUE":
             # TODO: Handle datetime
             since = str(int(since) + 1)
         url = url.replace('__since__', since)
