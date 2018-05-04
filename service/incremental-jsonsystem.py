@@ -11,8 +11,10 @@ import os
 app = Flask(__name__)
 
 SYSTEM = None
-URL_PATTERN = None
+FULL_URL_PATTERN = None
+UPDATED_URL_PATTERN = None
 UPDATED_PROPERTY = None
+OFFSET_BIGGER_AND_EQUAL = False
 
 
 def get_updated_property(json):
@@ -73,11 +75,16 @@ class Oauth2System():
 
 @app.route("/<path:path>", methods=["GET"])
 def get_data(path):
-    since = request.args.get('since', default=get_var("MIN_SINCE"))
+    since = request.args.get('since')
     limit = request.args.get('limit')
-    url = URL_PATTERN.replace('__path__', path)
     if since:
+        url = UPDATED_URL_PATTERN.replace('__path__', path)
+        if OFFSET_BIGGER_AND_EQUAL:
+            # TODO: Handle datetime
+            since = str(int(since) + 1)
         url = url.replace('__since__', since)
+    else:
+        url = FULL_URL_PATTERN.replace('__path__', path)
     if limit:
         url = url.replace('__limit__', limit)
     try:
@@ -92,7 +99,7 @@ def get_data(path):
         truncated = None
         limit = int(limit) if limit else -1
         if limit > 0 and limit < len(rst):
-            # Todo: support datetime sorting
+            # TODO: support datetime sorting
             rst.sort(key=get_updated_property, reverse=False)
             truncated = rst[0:limit]
         if truncated is None:
@@ -129,8 +136,10 @@ if __name__ == '__main__':
         logger.setlevel(logging.INFO)
         logger.info("Define an unsupported loglevel. Using the default level: INFO.")
 
-    URL_PATTERN = get_var('URL_PATTERN')
+    FULL_URL_PATTERN = get_var('FULL_URL_PATTERN')
+    UPDATED_URL_PATTERN = get_var('UPDATED_URL_PATTERN')
     UPDATED_PROPERTY = get_var('UPDATED_PROPERTY')
+    OFFSET_BIGGER_AND_EQUAL = get_var('OFFSET_BIGGER_AND_EQUAL')
     auth_type = get_var('AUTHENTICATION')
     config = json.loads(get_var('CONFIG'))
     if auth_type.upper() == 'OAUTH2':
