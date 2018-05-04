@@ -26,8 +26,6 @@ def get_var(var):
     envvar = None
     if var.upper() in os.environ:
         envvar = os.environ[var.upper()]
-    else:
-        envvar = request.args.get(var)
     logger.debug("Setting %s = %s" % (var, envvar))
     return envvar
 
@@ -75,7 +73,7 @@ class Oauth2System():
 
 @app.route("/<path:path>", methods=["GET"])
 def get_data(path):
-    since = request.args.get('since')
+    since = request.args.get('since', default=get_var("MIN_SINCE"))
     limit = request.args.get('limit')
     url = URL_PATTERN.replace('__path__', path)
     if since:

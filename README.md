@@ -10,7 +10,7 @@ An example of system config:
   "docker": {
     "environment": {
       "URL_PATTERN": "http://external-host:8888/__PATH__?offset=__since__&limit=__limit__",
-      "AUTHENTICITION": "oauth2",
+      "AUTHENTICATION": "oauth2",
       "CONFIG": {
         "oauth2": {
           "client_id": "id",
@@ -22,7 +22,8 @@ An example of system config:
       },
       "UPDATED_PROPERTY": "sequenceNumber"
     },
-    "image": "sesam/incremental-jsonsystem",
+    "image": "sesamcommunity/incremental-jsonsystem",
+    "port": 5000
   },
   "read_timeout": 7200,
 }
