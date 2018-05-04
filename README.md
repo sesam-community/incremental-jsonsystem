@@ -1,4 +1,5 @@
-# incremental-urlsystem
+[![Build Status](https://travis-ci.org/sesam-community/incremental-jsonsystem.svg?branch=master)](https://travis-ci.org/sesam-community/incremental-jsonsystem)
+# incremental-jsonsystem
 An example of system config: 
 
 ```json
