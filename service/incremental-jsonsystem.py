@@ -7,6 +7,9 @@ from datetime import datetime
 import json
 import logging
 import os
+import re
+import sys
+import urllib.parse
 
 app = Flask(__name__)
 
@@ -21,15 +24,23 @@ def get_updated_property(json):
     """
     Sort function
     """
+    logger.debug(json[UPDATED_PROPERTY])
+
     return json[UPDATED_PROPERTY]
 
 
 def get_var(var):
     envvar = None
-    if var.upper() in os.environ:
-        envvar = os.environ[var.upper()]
+    #if var.upper() in os.environ:
+    envvar = os.getenv(var.upper())
     logger.debug("Setting %s = %s" % (var, envvar))
     return envvar
+
+def error_handling():
+    return '{} - {}, at line {}'.format(sys.exc_info()[0],
+                                    sys.exc_info()[1],
+                                    sys.exc_info()[2].tb_lineno)
+ 
 
 
 class OpenUrlSystem():
@@ -52,7 +63,7 @@ class Oauth2System():
         """docstring for get_session"""
         # If no token has been created yet or if the previous token has expired, fetch a new access token
         # before returning the session to the callee
-        if not hasattr(self, "_token") or self._token["expires_at"] < datetime.utcnow().timestamp():
+        if not hasattr(self, "_token") or self._token["expires_at"] < datetime.datetime.utcnow().timestamp():
             oauth2_client = BackendApplicationClient(client_id=self._config["oauth2"]["client_id"])
             session = OAuth2Session(client=oauth2_client)
             # self._token = session.fetch_token(token_url=self._config["token_url"],
@@ -79,9 +90,18 @@ def get_data(path):
     limit = request.args.get('limit')
     if since:
         url = UPDATED_URL_PATTERN.replace('__path__', path)
-        if OFFSET_BIGGER_AND_EQUAL.upper() == "TRUE":
-            # TODO: Handle datetime
-            since = str(int(since) + 1)
+        # if OFFSET_BIGGER_AND_EQUAL.upper() == "TRUE":
+        logger.debug('Since is {}, with the value {}'.format(str(type(since)), since))
+        regex_iso_date_format = '^\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d(\.\d{0,7}){0,1}([+-][0-2]\d:[0-5]\d|Z)'
+        try:
+            if re.match(regex_iso_date_format, since):
+                logger.debug("SINCE IS A ISO DATE: {}".format(since))
+                since = urllib.parse.quote(since)
+            elif isinstance(int(since), int):
+                logger.debug("SINCE IS A VALID INT: {}".format(since))
+                since = str(int(since) + 1)
+        except Exception as ex:
+            logging.error(error_handling())
         url = url.replace('__since__', since)
     else:
         url = FULL_URL_PATTERN.replace('__path__', path)
@@ -93,13 +113,14 @@ def get_data(path):
             r = s.get(url)
 
         if r.status_code != 200:
+            logger.debug("Error {}:{}".format(r.status_code, r.text))
             abort(r.status_code, r.text)
         rst = r.json()
         logger.debug('Got {} entities'.format(len(rst)))
         truncated = None
         limit = int(limit) if limit else -1
         if limit > 0 and limit < len(rst):
-            # TODO: support datetime sorting
+            # TODO: support datetime sorting   
             rst.sort(key=get_updated_property, reverse=False)
             truncated = rst[0:limit]
         if truncated is None:
@@ -111,7 +132,7 @@ def get_data(path):
         return json.dumps(entities)
     except Exception as e:
         return abort(500, e)
-
+        
 
 if __name__ == '__main__':
     # Set up logging
@@ -135,7 +156,7 @@ if __name__ == '__main__':
     else:
         logger.setlevel(logging.INFO)
         logger.info("Define an unsupported loglevel. Using the default level: INFO.")
-
+        
     FULL_URL_PATTERN = get_var('FULL_URL_PATTERN')
     UPDATED_URL_PATTERN = get_var('UPDATED_URL_PATTERN')
     UPDATED_PROPERTY = get_var('UPDATED_PROPERTY')
