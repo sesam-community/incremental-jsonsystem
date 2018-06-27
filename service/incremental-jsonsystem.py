@@ -2,7 +2,7 @@ from flask import Flask, request, abort
 from oauthlib.oauth2 import BackendApplicationClient
 from requests_oauthlib import OAuth2Session
 import requests
-from datetime import datetime
+import datetime
 
 import json
 import logging
@@ -131,6 +131,7 @@ def get_data(path):
             entities.append(data)
         return json.dumps(entities)
     except Exception as e:
+        logging.error(error_handling())
         return abort(500, e)
         
 
@@ -156,7 +157,7 @@ if __name__ == '__main__':
     else:
         logger.setlevel(logging.INFO)
         logger.info("Define an unsupported loglevel. Using the default level: INFO.")
-        
+
     FULL_URL_PATTERN = get_var('FULL_URL_PATTERN')
     UPDATED_URL_PATTERN = get_var('UPDATED_URL_PATTERN')
     UPDATED_PROPERTY = get_var('UPDATED_PROPERTY')
