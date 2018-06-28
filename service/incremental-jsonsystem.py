@@ -21,17 +21,11 @@ OFFSET_BIGGER_AND_EQUAL = None
 
 
 def get_updated_property(json):
-    """
-    Sort function
-    """
-    logger.debug(json[UPDATED_PROPERTY])
-
     return json[UPDATED_PROPERTY]
 
 
 def get_var(var):
     envvar = None
-    #if var.upper() in os.environ:
     envvar = os.getenv(var.upper())
     logger.debug("Setting %s = %s" % (var, envvar))
     return envvar
@@ -66,10 +60,6 @@ class Oauth2System():
         if not hasattr(self, "_token") or self._token["expires_at"] < datetime.datetime.utcnow().timestamp():
             oauth2_client = BackendApplicationClient(client_id=self._config["oauth2"]["client_id"])
             session = OAuth2Session(client=oauth2_client)
-            # self._token = session.fetch_token(token_url=self._config["token_url"],
-            #                                  client_id=self._config["client_id"],
-            #                                  client_secret=self._config["client_secret"],
-            #                                  resource=self._config["resource"])
             logger.info("Updating token...")
             self._token = session.fetch_token(**self._config["oauth2"])
 
@@ -90,7 +80,6 @@ def get_data(path):
     limit = request.args.get('limit')
     if since:
         url = UPDATED_URL_PATTERN.replace('__path__', path)
-        # if OFFSET_BIGGER_AND_EQUAL.upper() == "TRUE":
         logger.debug('Since is {}, with the value {}'.format(str(type(since)), since))
         regex_iso_date_format = '^\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d(\.\d{0,7}){0,1}([+-][0-2]\d:[0-5]\d|Z)'
         try:
@@ -99,7 +88,8 @@ def get_data(path):
                 since = urllib.parse.quote(since)
             elif isinstance(int(since), int):
                 logger.debug("SINCE IS A VALID INT: {}".format(since))
-                since = str(int(since) + 1)
+                if OFFSET_BIGGER_AND_EQUAL.upper() == "TRUE":
+                    since = str(int(since) + 1)
         except Exception as ex:
             logging.error(error_handling())
         url = url.replace('__since__', since)
@@ -120,7 +110,6 @@ def get_data(path):
         truncated = None
         limit = int(limit) if limit else -1
         if limit > 0 and limit < len(rst):
-            # TODO: support datetime sorting   
             rst.sort(key=get_updated_property, reverse=False)
             truncated = rst[0:limit]
         if truncated is None:
