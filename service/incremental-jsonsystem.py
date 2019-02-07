@@ -1,4 +1,4 @@
-from flask import Flask, request, abort
+from flask import Flask, request, abort, send_from_directory
 from oauthlib.oauth2 import BackendApplicationClient
 from requests_oauthlib import OAuth2Session
 import requests
@@ -39,7 +39,7 @@ def error_handling():
 
 class OpenUrlSystem():
     def __init__(self, config):
-        self._confg = config
+        self._config = config
 
     def make_session(self):
         session = requests.Session()
@@ -73,6 +73,11 @@ class Oauth2System():
             session.headers = self._config['headers']
         return session
 
+# to remove favicon not found errormessages in the log
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(os.path.join(app.root_path, 'static'),
+                          'favicon.ico',mimetype='image/vnd.microsoft.icon')
 
 @app.route("/<path:path>", methods=["GET"])
 def get_data(path):
@@ -93,20 +98,22 @@ def get_data(path):
         except Exception as ex:
             logging.error(error_handling())
         url = url.replace('__since__', since)
+        logger.debug("URL WITH SINCE:{}".format(url))
     else:
         url = FULL_URL_PATTERN.replace('__path__', path)
+        logger.debug("URL WITHOUT SINCE:{}".format(url))
     if limit:
         url = url.replace('__limit__', limit)
     try:
         with SYSTEM.make_session() as s:
-            logger.debug('Getting from {}'.format(url))
+            logger.info('Getting from {}'.format(url))
             r = s.get(url)
 
         if r.status_code != 200:
             logger.debug("Error {}:{}".format(r.status_code, r.text))
             abort(r.status_code, r.text)
         rst = r.json()
-        logger.debug('Got {} entities'.format(len(rst)))
+        logger.info('Got {} entities'.format(len(rst)))
         truncated = None
         limit = int(limit) if limit else -1
         if limit > 0 and limit < len(rst):
