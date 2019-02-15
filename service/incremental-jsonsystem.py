@@ -34,7 +34,7 @@ def error_handling():
     return '{} - {}, at line {}'.format(sys.exc_info()[0],
                                     sys.exc_info()[1],
                                     sys.exc_info()[2].tb_lineno)
- 
+
 
 
 class OpenUrlSystem():
@@ -109,10 +109,10 @@ def get_data(path):
             logger.info('Getting from {}'.format(url))
             r = s.get(url)
 
-        if r.status_code != 200:
+        if r.status_code not in [200, 204]:
             logger.debug("Error {}:{}".format(r.status_code, r.text))
             abort(r.status_code, r.text)
-        rst = r.json()
+        rst = r.json() if r.status_code == 200 else []
         logger.info('Got {} entities'.format(len(rst)))
         truncated = None
         limit = int(limit) if limit else -1
@@ -129,7 +129,7 @@ def get_data(path):
     except Exception as e:
         logging.error(error_handling())
         return abort(500, e)
-        
+
 
 if __name__ == '__main__':
     # Set up logging
