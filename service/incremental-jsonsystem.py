@@ -10,6 +10,7 @@ import os
 import re
 import sys
 import urllib.parse
+import cherrypy
 
 app = Flask(__name__)
 
@@ -142,17 +143,7 @@ if __name__ == '__main__':
     logger.addHandler(stdout_handler)
 
     loglevel = os.environ.get("LOGLEVEL", "INFO")
-    if "INFO" == loglevel.upper():
-        logger.setLevel(logging.INFO)
-    elif "DEBUG" == loglevel.upper():
-        logger.setLevel(logging.DEBUG)
-    elif "WARN" == loglevel.upper():
-        logger.setLevel(logging.WARN)
-    elif "ERROR" == loglevel.upper():
-        logger.setLevel(logging.ERROR)
-    else:
-        logger.setlevel(logging.INFO)
-        logger.info("Define an unsupported loglevel. Using the default level: INFO.")
+    logger.setLevel(loglevel)
 
     FULL_URL_PATTERN = get_var('FULL_URL_PATTERN')
     UPDATED_URL_PATTERN = get_var('UPDATED_URL_PATTERN')
@@ -160,8 +151,25 @@ if __name__ == '__main__':
     OFFSET_BIGGER_AND_EQUAL = get_var('OFFSET_BIGGER_AND_EQUAL')
     auth_type = get_var('AUTHENTICATION')
     config = json.loads(get_var('CONFIG'))
+    print(config)
     if auth_type.upper() == 'OAUTH2':
         SYSTEM = Oauth2System(config)
     else:
         SYSTEM = OpenUrlSystem(config)
-    app.run(threaded=True, debug=True, host='0.0.0.0')
+
+
+    cherrypy.tree.graft(app, '/')
+
+    # Set the configuration of the web server to production mode
+    cherrypy.config.update({
+        'environment': 'production',
+        'engine.autoreload_on': False,
+        'log.screen': True,
+        'server.socket_port': int(os.environ.get("PORT", 5000)),
+        'server.socket_host': '0.0.0.0'
+    })
+
+    # Start the CherryPy WSGI web server
+    cherrypy.engine.start()
+    cherrypy.engine.block()
+    #app.run(threaded=True, debug=True, host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
