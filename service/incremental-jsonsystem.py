@@ -64,6 +64,7 @@ class Oauth2System():
             logger.info("Updating token...")
             self._token = session.fetch_token(**self._config["oauth2"])
 
+        logger.debug("ExpiresAt={}, now={}, diff={}".format(str(self._token.get("expires_at")), str(datetime.datetime.utcnow().timestamp()) ,str(self._token.get("expires_at", 0)-datetime.datetime.utcnow().timestamp())))
         return self._token
 
     def make_session(self):
