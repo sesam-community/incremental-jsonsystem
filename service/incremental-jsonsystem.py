@@ -152,7 +152,6 @@ if __name__ == '__main__':
     OFFSET_BIGGER_AND_EQUAL = get_var('OFFSET_BIGGER_AND_EQUAL')
     auth_type = get_var('AUTHENTICATION')
     config = json.loads(get_var('CONFIG'))
-    print(config)
     if auth_type.upper() == 'OAUTH2':
         SYSTEM = Oauth2System(config)
     else:
