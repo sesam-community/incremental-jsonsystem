@@ -10,6 +10,7 @@ import os
 import re
 import sys
 import urllib.parse
+import cherrypy
 
 app = Flask(__name__)
 
@@ -63,6 +64,7 @@ class Oauth2System():
             logger.info("Updating token...")
             self._token = session.fetch_token(**self._config["oauth2"])
 
+        logger.debug("ExpiresAt={}, now={}, diff={}".format(str(self._token.get("expires_at")), str(datetime.datetime.utcnow().timestamp()) ,str(self._token.get("expires_at", 0)-datetime.datetime.utcnow().timestamp())))
         return self._token
 
     def make_session(self):
@@ -86,7 +88,7 @@ def get_data(path):
     if since:
         url = UPDATED_URL_PATTERN.replace('__path__', path)
         logger.debug('Since is {}, with the value {}'.format(str(type(since)), since))
-        regex_iso_date_format = '^\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d(\.\d{0,7}){0,1}([+-][0-2]\d:[0-5]\d|Z)'
+        regex_iso_date_format = '^\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d(\.\d{0,7}){0,1}([+-][0-2]\d:[0-5]\d|Z)?'
         try:
             if re.match(regex_iso_date_format, since):
                 logger.debug("SINCE IS A ISO DATE: {}".format(since))
@@ -142,17 +144,7 @@ if __name__ == '__main__':
     logger.addHandler(stdout_handler)
 
     loglevel = os.environ.get("LOGLEVEL", "INFO")
-    if "INFO" == loglevel.upper():
-        logger.setLevel(logging.INFO)
-    elif "DEBUG" == loglevel.upper():
-        logger.setLevel(logging.DEBUG)
-    elif "WARN" == loglevel.upper():
-        logger.setLevel(logging.WARN)
-    elif "ERROR" == loglevel.upper():
-        logger.setLevel(logging.ERROR)
-    else:
-        logger.setlevel(logging.INFO)
-        logger.info("Define an unsupported loglevel. Using the default level: INFO.")
+    logger.setLevel(loglevel)
 
     FULL_URL_PATTERN = get_var('FULL_URL_PATTERN')
     UPDATED_URL_PATTERN = get_var('UPDATED_URL_PATTERN')
@@ -164,4 +156,20 @@ if __name__ == '__main__':
         SYSTEM = Oauth2System(config)
     else:
         SYSTEM = OpenUrlSystem(config)
-    app.run(threaded=True, debug=True, host='0.0.0.0')
+
+
+    cherrypy.tree.graft(app, '/')
+
+    # Set the configuration of the web server to production mode
+    cherrypy.config.update({
+        'environment': 'production',
+        'engine.autoreload_on': False,
+        'log.screen': True,
+        'server.socket_port': int(os.environ.get("PORT", 5000)),
+        'server.socket_host': '0.0.0.0'
+    })
+
+    # Start the CherryPy WSGI web server
+    cherrypy.engine.start()
+    cherrypy.engine.block()
+    #app.run(threaded=True, debug=True, host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
