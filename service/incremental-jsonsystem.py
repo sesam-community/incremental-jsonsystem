@@ -87,7 +87,7 @@ def get_data(path):
     if since:
         url = UPDATED_URL_PATTERN.replace('__path__', path)
         logger.debug('Since is {}, with the value {}'.format(str(type(since)), since))
-        regex_iso_date_format = '^\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d(\.\d{0,7}){0,1}([+-][0-2]\d:[0-5]\d|Z)'
+        regex_iso_date_format = '^\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d(\.\d{0,7}){0,1}([+-][0-2]\d:[0-5]\d|Z)?'
         try:
             if re.match(regex_iso_date_format, since):
                 logger.debug("SINCE IS A ISO DATE: {}".format(since))
