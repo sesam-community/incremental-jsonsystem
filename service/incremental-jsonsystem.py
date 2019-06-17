@@ -10,7 +10,7 @@ import os
 import re
 import sys
 import urllib.parse
-import cherrypy
+import logger as log
 
 app = Flask(__name__)
 
@@ -151,16 +151,7 @@ def get_data(path):
 
 if __name__ == '__main__':
     # Set up logging
-    format_string = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    logger = logging.getLogger('incremental-jsonsystem')
-
-    # Log to stdout
-    stdout_handler = logging.StreamHandler()
-    stdout_handler.setFormatter(logging.Formatter(format_string))
-    logger.addHandler(stdout_handler)
-
-    loglevel = os.environ.get("LOGLEVEL", "INFO")
-    logger.setLevel(loglevel)
+    logger = log.init_logger('freshdesk-rest-service', os.getenv('LOGLEVEL', 'INFO'))
 
     FULL_URL_PATTERN = get_var('FULL_URL_PATTERN')
     UPDATED_URL_PATTERN = get_var('UPDATED_URL_PATTERN')
@@ -181,18 +172,24 @@ if __name__ == '__main__':
         SYSTEM = OpenUrlSystem(config)
 
 
-    cherrypy.tree.graft(app, '/')
+    if os.environ.get('WEBFRAMEWORK', '').lower() == 'flask':
+        app.run(debug=True, host='0.0.0.0', port=int(
+            os.environ.get('PORT', 5000)))
+    else:
+        import cherrypy
+        app = log.add_access_logger(app, logger)
+        cherrypy.tree.graft(app, '/')
 
-    # Set the configuration of the web server to production mode
-    cherrypy.config.update({
-        'environment': 'production',
-        'engine.autoreload_on': False,
-        'log.screen': True,
-        'server.socket_port': int(os.environ.get("PORT", 5000)),
-        'server.socket_host': '0.0.0.0'
-    })
+        # Set the configuration of the web server to production mode
+        cherrypy.config.update({
+            'environment': 'production',
+            'engine.autoreload_on': False,
+            'log.screen': True,
+            'server.socket_port': int(os.environ.get("PORT", 5000)),
+            'server.socket_host': '0.0.0.0'
+        })
 
-    # Start the CherryPy WSGI web server
-    cherrypy.engine.start()
-    cherrypy.engine.block()
-    #app.run(threaded=True, debug=True, host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
+        # Start the CherryPy WSGI web server
+        cherrypy.engine.start()
+        cherrypy.engine.block()
+        #app.run(threaded=True, debug=True, host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
