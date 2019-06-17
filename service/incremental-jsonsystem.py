@@ -85,6 +85,11 @@ def favicon():
 def get_data(path):
     since = request.args.get('since')
     limit = request.args.get('limit')
+    updated_property_in_call = request.args.get('updated_property',UPDATED_PROPERTY)
+    offset_bigger_and_equal_in_call = request.args.get('offset_bigger_and_equal',OFFSET_BIGGER_AND_EQUAL).lower() == "true"
+    do_sort = request.args.get('do_sort',"false").lower() == "true"
+    data_property = request.args.get('data_property')
+
     if since:
         url = UPDATED_URL_PATTERN.replace('__path__', path)
         logger.debug('Since is {}, with the value {}'.format(str(type(since)), since))
@@ -95,7 +100,7 @@ def get_data(path):
                 since = urllib.parse.quote(since)
             elif isinstance(int(since), int):
                 logger.debug("SINCE IS A VALID INT: {}".format(since))
-                if OFFSET_BIGGER_AND_EQUAL.upper() == "TRUE":
+                if offset_bigger_and_equal_in_call:
                     since = str(int(since) + 1)
         except Exception as ex:
             logging.error(error_handling())
@@ -108,29 +113,40 @@ def get_data(path):
         url = url.replace('__limit__', limit)
     try:
         with SYSTEM.make_session() as s:
-            logger.info('Getting from {}'.format(url))
+            logger.debug('Getting from {}'.format(url))
             r = s.get(url)
 
         if r.status_code not in [200, 204]:
             logger.debug("Error {}:{}".format(r.status_code, r.text))
             abort(r.status_code, r.text)
         rst = r.json() if r.status_code == 200 else []
-        logger.info('Got {} entities'.format(len(rst)))
-        truncated = None
+        if type(rst) == dict:
+            rst = [rst]
+        logger.debug('Got {} entities'.format(len(rst)))
+        #read data from the data_property in the response json
+        rst_data = []
+        if data_property:
+            for entity in rst:
+                rst_data.extend(entity[data_property])
+        else:
+            rst_data = rst
+        # apply limit'ing
         limit = int(limit) if limit else -1
-        if limit > 0 and limit < len(rst):
-            rst.sort(key=get_updated_property, reverse=False)
-            truncated = rst[0:limit]
-        if truncated is None:
-            truncated = rst
-        entities = []
-        for data in truncated:
-            data["_updated"] = data[UPDATED_PROPERTY]
-            entities.append(data)
-        return json.dumps(entities)
+        if limit > 0:
+            rst_data = rst_data[0:limit]
+        #apply sorting by updated_property
+        if do_sort:
+            rst_data.sort(key=get_updated_property, reverse=False)
+        #sesamify and generate final response data
+        entities_to_return = []
+        for data in rst_data:
+            data["_updated"] = data[updated_property_in_call]
+            entities_to_return.append(data)
+        return json.dumps(entities_to_return)
     except Exception as e:
-        logging.error(error_handling())
-        return abort(500, e)
+        exception_str = error_handling()
+        logging.error(exception_str)
+        return abort(500, exception_str)
 
 
 if __name__ == '__main__':
@@ -152,6 +168,13 @@ if __name__ == '__main__':
     OFFSET_BIGGER_AND_EQUAL = get_var('OFFSET_BIGGER_AND_EQUAL')
     auth_type = get_var('AUTHENTICATION')
     config = json.loads(get_var('CONFIG'))
+
+    print('STARTED UP WITH:')
+    print('\tFULL_URL_PATTERN={}'.format(FULL_URL_PATTERN))
+    print('\tUPDATED_URL_PATTERN={}'.format(UPDATED_URL_PATTERN))
+    print('\tUPDATED_PROPERTY={}'.format(UPDATED_PROPERTY))
+    print('\tOFFSET_BIGGER_AND_EQUAL={}'.format(OFFSET_BIGGER_AND_EQUAL))
+    print('\tauth_type={}'.format(auth_type))
     if auth_type.upper() == 'OAUTH2':
         SYSTEM = Oauth2System(config)
     else:
