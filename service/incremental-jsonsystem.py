@@ -40,7 +40,7 @@ class OpenUrlSystem():
 
     def make_session(self):
         session = requests.Session()
-        session.headers = self.config['headers']
+        session.headers = self._config['headers']
         return session
 
 
@@ -167,7 +167,7 @@ def get_data(path):
 
 if __name__ == '__main__':
     # Set up logging
-    logger = log.init_logger('freshdesk-rest-service', os.getenv('LOGLEVEL', 'INFO'))
+    logger = log.init_logger('incremental-jsonsystem', os.getenv('LOGLEVEL', 'INFO'))
 
     FULL_URL_PATTERN = get_var('FULL_URL_PATTERN')
     UPDATED_URL_PATTERN = get_var('UPDATED_URL_PATTERN')
