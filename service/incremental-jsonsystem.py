@@ -81,6 +81,9 @@ def favicon():
 def get_data(path):
     since = request.args.get('since')
     limit = request.args.get('limit')
+    call_issued_time = None
+    if request.args.get('ms_use_currenttime_as_updated',"false").lower() == "true":
+        call_issued_time = datetime.datetime.now().isoformat()
     updated_property_in_effect = request.args.get('ms_updated_property',UPDATED_PROPERTY)
     offset_bigger_and_equal_in_effect = request.args.get('ms_offset_bigger_and_equal',OFFSET_BIGGER_AND_EQUAL).lower() == "true"
     do_sort = request.args.get('ms_do_sort',"false").lower() == "true"
@@ -155,9 +158,15 @@ def get_data(path):
 
         #sesamify and generate final response data
         entities_to_return = []
-        for data in rst_data:
-            data["_updated"] = data[updated_property_in_effect]
-            entities_to_return.append(data)
+        if call_issued_time or updated_property_in_effect:
+            for data in rst_data:
+                if call_issued_time:
+                    data["_updated"] = call_issued_time
+                elif updated_property_in_effect:
+                    data["_updated"] = data[updated_property_in_effect]
+                entities_to_return.append(data)
+        else:
+            entities_to_return = rst_data
         return json.dumps(entities_to_return)
     except Exception as e:
         exception_str = error_handling()
@@ -182,10 +191,11 @@ if __name__ == '__main__':
     print('\tUPDATED_PROPERTY={}'.format(UPDATED_PROPERTY))
     print('\tOFFSET_BIGGER_AND_EQUAL={}'.format(OFFSET_BIGGER_AND_EQUAL))
     print('\tauth_type={}'.format(auth_type))
-    if auth_type.upper() == 'OAUTH2':
-        SYSTEM = Oauth2System(config)
-    else:
+    if not auth_type:
         SYSTEM = OpenUrlSystem(config)
+    elif auth_type.upper() == 'OAUTH2':
+        SYSTEM = Oauth2System(config)
+
 
 
     if os.environ.get('WEBFRAMEWORK', '').lower() == 'flask':

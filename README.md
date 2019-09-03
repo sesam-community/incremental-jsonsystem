@@ -42,7 +42,8 @@ There are the parameters that effect the way this microservice works. They are a
 | -------------------|---------------------|:------------:|:-----------:|
 | ms_since_param_at_src | the name of the query parameter at the source system that corresponds to sesam's _limit_ parameter | no | n/a |
 | ms_limit_param_at_src | the name of the query parameter at the source system that corresponds to sesam's _limit_ parameter | no | n/a |
-| ms_updated_property | the name of the field that will be read into \_updated field for each entity | yes | n/a |
+| ms_updated_property | the name of the field that will be read into \_updated field for each entity | no | n/a |
+| ms_use_since_as_updated | sometimes the source does not expose _updated_ date. In such cases, this flag can be set to _true_ to use currenttimestamp as the _updated value. | no | n/a |
 | ms_data_property | the name of the field from which the entities will be read from  | no | n/a |
 | ms_do_sort | flag to get output sorted after \_updated field. Values: _true_/_false_ | no | _false_ |
 | ms_offset_bigger_and_equal | set to _true_ to get the entities that are _greater than_ the offset value instead of _greater-than-or-equals_. The source systems behaviour should be taken into account here. Works for offset values of type integer only. Values: _true_/_false_ | no | _false_ |
