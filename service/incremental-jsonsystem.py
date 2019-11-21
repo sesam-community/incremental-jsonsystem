@@ -34,7 +34,6 @@ def error_handling():
                                     sys.exc_info()[2].tb_lineno)
 
 
-
 class OpenUrlSystem():
     def __init__(self, config):
         self._config = config
@@ -43,7 +42,6 @@ class OpenUrlSystem():
         session = requests.Session()
         session.headers = self._config['headers']
         return session
-
 
 class Oauth2System():
     def __init__(self, config):
@@ -55,13 +53,13 @@ class Oauth2System():
         """docstring for get_session"""
         # If no token has been created yet or if the previous token has expired, fetch a new access token
         # before returning the session to the callee
-        if not hasattr(self, "_token") or self._token["expires_at"] < datetime.datetime.utcnow().timestamp():
+        if not hasattr(self, "_token") or self._token["expires_at"] < datetime.datetime.now().timestamp():
             oauth2_client = BackendApplicationClient(client_id=self._config["oauth2"]["client_id"])
             session = OAuth2Session(client=oauth2_client)
             logger.info("Updating token...")
             self._token = session.fetch_token(**self._config["oauth2"])
 
-        logger.debug("ExpiresAt={}, now={}, diff={}".format(str(self._token.get("expires_at")), str(datetime.datetime.utcnow().timestamp()) ,str(self._token.get("expires_at", 0)-datetime.datetime.utcnow().timestamp())))
+        logger.debug("ExpiresAt={}, now={}, diff={}".format(str(self._token.get("expires_at")), str(datetime.datetime.now().timestamp()) ,str(self._token.get("expires_at", 0)-datetime.datetime.now().timestamp())))
         return self._token
 
     def make_session(self):
