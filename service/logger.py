@@ -29,5 +29,4 @@ def add_access_logger(app, logger):
 
     app.wsgi_app = TransLogger(app.wsgi_app, logger_name=logger.name, format=wsgi_log_format_string,
                                setup_console_handler=False, set_logger_level=logger.level)
-    app.logger.addHandler(get_stdout_handler())
     return app

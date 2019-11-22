@@ -1,4 +1,5 @@
-from flask import Flask, request, abort, send_from_directory
+
+from flask import Flask, request, abort, send_from_directory, Response
 from oauthlib.oauth2 import BackendApplicationClient
 from requests_oauthlib import OAuth2Session
 import requests
@@ -33,7 +34,6 @@ def error_handling():
                                     sys.exc_info()[2].tb_lineno)
 
 
-
 class OpenUrlSystem():
     def __init__(self, config):
         self._config = config
@@ -42,7 +42,6 @@ class OpenUrlSystem():
         session = requests.Session()
         session.headers = self._config['headers']
         return session
-
 
 class Oauth2System():
     def __init__(self, config):
@@ -54,13 +53,13 @@ class Oauth2System():
         """docstring for get_session"""
         # If no token has been created yet or if the previous token has expired, fetch a new access token
         # before returning the session to the callee
-        if not hasattr(self, "_token") or self._token["expires_at"] < datetime.datetime.utcnow().timestamp():
+        if not hasattr(self, "_token") or self._token["expires_at"] < datetime.datetime.now().timestamp():
             oauth2_client = BackendApplicationClient(client_id=self._config["oauth2"]["client_id"])
             session = OAuth2Session(client=oauth2_client)
             logger.info("Updating token...")
             self._token = session.fetch_token(**self._config["oauth2"])
 
-        logger.debug("ExpiresAt={}, now={}, diff={}".format(str(self._token.get("expires_at")), str(datetime.datetime.utcnow().timestamp()) ,str(self._token.get("expires_at", 0)-datetime.datetime.utcnow().timestamp())))
+        logger.debug("ExpiresAt={}, now={}, diff={}".format(str(self._token.get("expires_at")), str(datetime.datetime.now().timestamp()) ,str(self._token.get("expires_at", 0)-datetime.datetime.now().timestamp())))
         return self._token
 
     def make_session(self):
@@ -77,29 +76,134 @@ def favicon():
     return send_from_directory(os.path.join(app.root_path, 'static'),
                           'favicon.ico',mimetype='image/vnd.microsoft.icon')
 
-@app.route("/<path:path>", methods=["GET"])
-def get_data(path):
-    since = request.args.get('since')
-    limit = request.args.get('limit')
-    call_issued_time = None
-    if request.args.get('ms_use_currenttime_as_updated',"false").lower() == "true":
-        call_issued_time = datetime.datetime.now().isoformat()
-    updated_property_in_effect = request.args.get('ms_updated_property',UPDATED_PROPERTY)
-    offset_bigger_and_equal_in_effect = request.args.get('ms_offset_bigger_and_equal',OFFSET_BIGGER_AND_EQUAL).lower() == "true"
-    do_sort = request.args.get('ms_do_sort',"false").lower() == "true"
-    data_property = request.args.get('ms_data_property')
-    since_param_at_src = request.args.get('ms_since_param_at_src')
-    limit_param_at_src = request.args.get('ms_limit_param_at_src')
+def generate_response_data(url, microservice_args, args_to_forward):
+    is_first_yield = True
+    is_limit_reached = False
+    entity_count = 0
+    limit = int(microservice_args.get('limit')) if microservice_args.get('limit') else None
+    if microservice_args.get('ms_pagenum_param_at_src') and args_to_forward[microservice_args.get('ms_pagenum_param_at_src')]:
+        pagenum = int(args_to_forward[microservice_args.get('ms_pagenum_param_at_src')])
+    yield '['
+    try:
+        with SYSTEM.make_session() as s:
+            while True:
+                logger.debug('Getting from url={}, with params={}, with do_page={}'.format(url, args_to_forward, microservice_args.get('do_page')))
+                r = s.get(url, params=args_to_forward)
+                if r.status_code not in [200, 204]:
+                    logger.debug("Error {}:{}".format(r.status_code, r.text))
+                    abort(r.status_code, r.text)
 
-    args_to_forward = {}
-    for key, value in request.args.items():
-        if key not in ['since','limit','ms_updated_property','ms_offset_bigger_and_equal','ms_do_sort','ms_data_property','ms_since_param_at_src','ms_limit_param_at_src']:
-            args_to_forward[key] = value
+                rst = r.json() if r.status_code == 200 else []
+                if type(rst) == dict:
+                    rst = [rst]
+                logger.debug('Got {} entities'.format(len(rst)))
+
+                #read data from the data_property in the response json
+                rst_data = []
+                if microservice_args.get('data_property'):
+                    for entity in rst:
+                        rst_data.extend(entity[microservice_args.get('data_property')])
+                else:
+                    rst_data = rst
+
+                #apply sorting by updated_property
+                if microservice_args.get('ms_do_sort'):
+                    def get_updated_property(myjson):
+                        return myjson[microservice_args.get('ms_updated_property')]
+                    rst_data.sort(key=get_updated_property, reverse=False)
+
+                entity_count += len(rst_data)
+                # apply limit'ing
+                if limit:
+                    limit = limit - len(rst_data)
+                    if limit < 0:
+                        rst_data = rst_data[0:limit]
+                        is_limit_reached = True
+
+                #sesamify and generate final response data
+                entities_to_return = []
+                if microservice_args.get('call_issued_time') or microservice_args.get('ms_updated_property'):
+                    for data in rst_data:
+                        if microservice_args.get('call_issued_time'):
+                            data["_updated"] = microservice_args.get('call_issued_time')
+                        elif microservice_args.get('ms_updated_property'):
+                            data["_updated"] = data[microservice_args.get('ms_updated_property')]
+                        entities_to_return.append(data)
+                else:
+                    entities_to_return = rst_data
+
+                for entity in entities_to_return:
+                    if is_first_yield:
+                        is_first_yield = False
+                    else:
+                        yield ','
+                    yield json.dumps(entity)
+
+                if not microservice_args.get('do_page') or len(entities_to_return) == 0 or is_limit_reached:
+                        break
+                else:
+                    pagenum+=1
+                    args_to_forward[microservice_args.get('ms_pagenum_param_at_src')] = pagenum
+        yield ']'
+    except Exception as err:
+        yield error_handling()
+
+def parse_qs(request):
+    microservice_args = {'since':None, 'limit':None, 'ms_updated_property': UPDATED_PROPERTY,
+                        'ms_offset_bigger_and_equal': OFFSET_BIGGER_AND_EQUAL, 'ms_do_sort':False,
+                        'ms_data_property':None, 'ms_since_param_at_src':None,
+                        'ms_limit_param_at_src':None, 'ms_pagenum_param_at_src':None,
+                        'ms_use_currenttime_as_updated': False}
+    limit = request.args.get('limit')
+    since = request.args.get('since')
 
     if since:
-        url = UPDATED_URL_PATTERN.replace('__path__', path)
-        if since_param_at_src:
-            args_to_forward[since_param_at_src] = since
+        url = UPDATED_URL_PATTERN.replace('__path__', request.path[1:])
+        url = url.replace('__since__', since)
+    else:
+        url = FULL_URL_PATTERN.replace('__path__', request.path[1:])
+
+    if limit:
+        url = url.replace('__limit__', limit)
+
+    parsed_url = urllib.parse.urlsplit(url)
+    url = urllib.parse.urlunsplit((parsed_url[0],parsed_url[1],parsed_url[2], None, parsed_url[4]))
+    url_args = urllib.parse.parse_qs(parsed_url[3])
+    request_args = urllib.parse.parse_qs(request.query_string.decode('utf-8'))
+    #collect microservice_args from url_args and request_args giving the latter higher precedence
+    for arg in microservice_args.keys():
+        value = url_args.get(arg, [None])[0]
+        if isinstance(value, bool):
+            value = (value.lower() == "true")
+        microservice_args[arg] = value
+
+    for arg in microservice_args.keys():
+        value = request_args.get(arg, [None])[0]
+        if isinstance(value, bool):
+            value = (value.lower() == "true")
+        if value:
+            microservice_args[arg] = value
+
+    #set call_issued_time to use as _updated value
+    if microservice_args.get('ms_use_currenttime_as_updated'):
+        microservice_args.set('call_issued_time', datetime.datetime.now().isoformat())
+    del microservice_args['ms_use_currenttime_as_updated']
+
+    #collect args_to_forward from url_args and request_args giving the latter higher precedence
+    args_to_forward = {}
+    for key, value in url_args.items():
+        if key not in microservice_args:
+            args_to_forward.setdefault(key, value[0])
+    for key, value in request_args.items():
+        if key not in microservice_args:
+            args_to_forward[key] = value[0]
+
+    if microservice_args.get('ms_pagenum_param_at_src') and args_to_forward.get(microservice_args.get('ms_pagenum_param_at_src')):
+        microservice_args['do_page'] = True
+
+    if since:
+        if microservice_args.get('ms_since_param_at_src'):
+            args_to_forward[microservice_args.get('ms_since_param_at_src')] = since
         if '__since__' in url:
             logger.debug('Since is {}, with the value {}'.format(str(type(since)), since))
             regex_iso_date_format = '^\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d(\.\d{0,7}){0,1}([+-][0-2]\d:[0-5]\d|Z)?'
@@ -109,65 +213,30 @@ def get_data(path):
                     since = urllib.parse.quote(since)
                 elif isinstance(int(since), int):
                     logger.debug("SINCE IS A VALID INT: {}".format(since))
-                    if offset_bigger_and_equal_in_effect:
+                    if microservice_args.get('ms_offset_bigger_and_equal'):
                         since = str(int(since) + 1)
             except Exception as ex:
                 logging.error(error_handling())
             url = url.replace('__since__', since)
             logger.debug("URL WITH SINCE:{}".format(url))
     else:
-        url = FULL_URL_PATTERN.replace('__path__', path)
         logger.debug("URL WITHOUT SINCE:{}".format(url))
     if limit:
-        if limit_param_at_src:
-            args_to_forward[limit_param_at_src] = limit
+        if microservice_args.get('ms_limit_param_at_src'):
+            args_to_forward[microservice_args.get('ms_limit_param_at_src')] = limit
         if '__limit__' in url:
             url = url.replace('__limit__', limit)
+        if limit and not microservice_args.get('ms_limit_param_at_src'):
+            microservice_args[limit] = int(limit)
+    return url, microservice_args, args_to_forward
+
+
+@app.route("/<path:path>", methods=["GET"])
+def get_data(path):
+    url, microservice_args, args_to_forward = parse_qs(request)
     try:
-        with SYSTEM.make_session() as s:
-            logger.debug('Getting from url={}, with params={}'.format(url, args_to_forward))
-            r = s.get(url, params=args_to_forward)
-
-        if r.status_code not in [200, 204]:
-            logger.debug("Error {}:{}".format(r.status_code, r.text))
-            abort(r.status_code, r.text)
-        rst = r.json() if r.status_code == 200 else []
-        if type(rst) == dict:
-            rst = [rst]
-        logger.debug('Got {} entities'.format(len(rst)))
-
-        #read data from the data_property in the response json
-        rst_data = []
-        if data_property:
-            for entity in rst:
-                rst_data.extend(entity[data_property])
-        else:
-            rst_data = rst
-
-        #apply sorting by updated_property
-        if do_sort:
-            def get_updated_property(myjson):
-                return myjson[updated_property_in_effect]
-            rst_data.sort(key=get_updated_property, reverse=False)
-
-        # apply limit'ing
-        if limit and not limit_param_at_src:
-            limit = int(limit) if limit else -1
-            if limit > 0:
-                rst_data = rst_data[0:limit]
-
-        #sesamify and generate final response data
-        entities_to_return = []
-        if call_issued_time or updated_property_in_effect:
-            for data in rst_data:
-                if call_issued_time:
-                    data["_updated"] = call_issued_time
-                elif updated_property_in_effect:
-                    data["_updated"] = data[updated_property_in_effect]
-                entities_to_return.append(data)
-        else:
-            entities_to_return = rst_data
-        return json.dumps(entities_to_return)
+        response_data = generate_response_data(url, microservice_args, args_to_forward)
+        return Response(response=response_data)
     except Exception as e:
         exception_str = error_handling()
         logging.error(exception_str)

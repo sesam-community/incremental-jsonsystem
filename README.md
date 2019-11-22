@@ -9,6 +9,7 @@ can be used to:
  * add sesam's \_updated field to support continuation
  * sorting after \_updated field value to support chronological continuation
  * limit the number of returned entities
+ * streaming page by page
 
 
 ### Environment Parameters
@@ -25,7 +26,9 @@ can be used to:
 
 ### Query Parameters
 
-Query parameters that the service supports can be divided into three groups:
+Query parameters that the service supports can be divided into three groups as described below.
+
+Query parameters can be specified in the FULL_URL_PATTERN/UPDATED_URL_PATTERN or in the url property of the pipe. If specified in both, the latter will be given precedence.
 
 #### 1. query parameters after SESAM pull protocol
 These parameters are supported due to SESAM pull protocol. Note that these parameters are sent implicitly by the SESAM depending on the continuation support setings in the pipe config.
@@ -38,15 +41,18 @@ These parameters are supported due to SESAM pull protocol. Note that these param
 #### 2. query parameters after proxy service:
 There are the parameters that effect the way this microservice works. They are all prefixed with "ms_".
 
+
 | CONFIG_NAME        | DESCRIPTION           | IS_REQUIRED  |DEFAULT_VALUE|
 | -------------------|---------------------|:------------:|:-----------:|
-| ms_since_param_at_src | the name of the query parameter at the source system that corresponds to sesam's _limit_ parameter | no | n/a |
+| ms_since_param_at_src | the name of the query parameter at the source system that corresponds to sesam's _since_ parameter | no | n/a |
 | ms_limit_param_at_src | the name of the query parameter at the source system that corresponds to sesam's _limit_ parameter | no | n/a |
 | ms_updated_property | the name of the field that will be read into \_updated field for each entity | no | n/a |
-| ms_use_since_as_updated | sometimes the source does not expose _updated_ date. In such cases, this flag can be set to _true_ to use currenttimestamp as the _updated value. | no | n/a |
+| ms_use_currenttime_as_updated | sometimes the source does not expose _updated_ date. In such cases, this flag can be set to _true_ to use currenttimestamp as the _updated value. | no | n/a |
 | ms_data_property | the name of the field from which the entities will be read from  | no | n/a |
-| ms_do_sort | flag to get output sorted after \_updated field. Values: _true_/_false_ | no | _false_ |
+| ms_do_sort | flag to get output sorted after \_updated field. Values: _true_/_false_. Applies to the page that is being retrieved only, hence upon pagination sorting is guaranteed only if the source delivers entities sorted | no | _false_ |
 | ms_offset_bigger_and_equal | set to _true_ to get the entities that are _greater than_ the offset value instead of _greater-than-or-equals_. The source systems behaviour should be taken into account here. Works for offset values of type integer only. Values: _true_/_false_ | no | _false_ |
+| ms_pagenum_param_at_src | if pagination is applicable,the name of the query parameter for the page number. Required to activate pagination along with the "page number parameter" so that succeeding pages would be returned as well | no | n/a |
+
 
 #### 3. query parameters after the Source system
 There are the parameters that are passed over to the source system.
@@ -77,7 +83,7 @@ system:
         },
       "UPDATED_PROPERTY": "sequenceNumber"
     },
-    "image": "sesamcommunity/incremental-jsonsystem",
+    "image": "sesamcommunity/incremental-jsonsystem:x.y.z",
     "port": 5000
   },
   "read_timeout": 7200,
@@ -91,7 +97,7 @@ system and pipe
   "connect_timeout": 60,
   "docker": {
     "environment": {
-      "URL_PATTERN": "http://external-host:8888/__PATH__",
+      "URL_PATTERN": "http://external-host:8888/__PATH__=ms_pagenum_param_at_src=pagenum&pagenum=1&pagesize=100",
       "AUTHENTICATION": "oauth2",
       "CONFIG": {
         "oauth2": {
@@ -104,14 +110,14 @@ system and pipe
           "x-api-version": "1.0"
         }
     },
-    "image": "sesamcommunity/incremental-jsonsystem:v2.0",
+    "image": "sesamcommunity/incremental-jsonsystem:x.y.z",
     "port": 5000
   },
   "read_timeout": 7200,
 }
 
 {
-  "_id": "Copy of kundemaster-customer",
+  "_id": "my-pipe-id",
   "type": "pipe",
   "source": {
     "type": "json",
@@ -119,7 +125,7 @@ system and pipe
         "is_chronological": true,
         "is_since_comparable": true,
         "supports_since": true,
-        "url": "mypath/yourpath/ourpath?ms_since_param_at_src=updated_since&ms_updated_property=updated_at&ms_do_sort=true"      
+        "url": "mypath/yourpath/ourpath?ms_since_param_at_src=updated_since&ms_updated_property=updated_at&ms_do_sort=true&pagesize=50"
   },
   "transform":  [...]
 }
