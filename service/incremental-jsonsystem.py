@@ -200,6 +200,10 @@ def parse_qs(request):
 
     if microservice_args.get('ms_pagenum_param_at_src') and args_to_forward.get(microservice_args.get('ms_pagenum_param_at_src')):
         microservice_args['do_page'] = True
+    if 'since' in urllib.parse.parse_qs(parsed_url[3]):
+        microservice_args['ms_since_param_at_src'] = 'since'
+    if 'limit' in urllib.parse.parse_qs(parsed_url[3]):
+        microservice_args['ms_since_param_at_src'] = 'limit'
 
     if since:
         if microservice_args.get('ms_since_param_at_src'):
@@ -233,8 +237,8 @@ def parse_qs(request):
 
 @app.route("/<path:path>", methods=["GET"])
 def get_data(path):
-    url, microservice_args, args_to_forward = parse_qs(request)
     try:
+        url, microservice_args, args_to_forward = parse_qs(request)
         response_data = generate_response_data(url, microservice_args, args_to_forward)
         return Response(response=response_data)
     except Exception as e:
