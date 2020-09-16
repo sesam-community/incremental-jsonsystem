@@ -100,9 +100,9 @@ def generate_response_data(url, microservice_args, args_to_forward):
 
                 #read data from the data_property in the response json
                 rst_data = []
-                if microservice_args.get('data_property'):
+                if microservice_args.get('ms_data_property'):
                     for entity in rst:
-                        rst_data.extend(entity[microservice_args.get('data_property')])
+                        rst_data.extend(entity[microservice_args.get('ms_data_property')])
                 else:
                     rst_data = rst
 
