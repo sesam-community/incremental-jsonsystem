@@ -11,9 +11,12 @@ import os
 import re
 import sys
 import urllib.parse
-import logger as log
+from sesamutils import sesam_logger
+from sesamutils.flask import serve
 
 app = Flask(__name__)
+
+logger = sesam_logger("incremental-jsonsystem", app=app)
 
 SYSTEM = None
 FULL_URL_PATTERN = None
@@ -87,7 +90,7 @@ def generate_response_data(url, microservice_args, args_to_forward):
     try:
         with SYSTEM.make_session() as s:
             while True:
-                logger.debug('Getting from url={}, with params={}, with do_page={}'.format(url, args_to_forward, microservice_args.get('do_page')))
+                logger.debug('Getting from url={}, with params={}, with do_page={}, with headers={}'.format(url, args_to_forward, microservice_args.get('do_page'),s.headers))
                 r = s.get(url, params=args_to_forward)
                 if r.status_code not in [200, 204]:
                     logger.debug("Error {}:{}".format(r.status_code, r.text))
@@ -102,7 +105,7 @@ def generate_response_data(url, microservice_args, args_to_forward):
                 rst_data = []
                 if microservice_args.get('ms_data_property'):
                     for entity in rst:
-                        rst_data.extend(entity[microservice_args.get('ms_data_property')])
+                        rst_data.append(entity[microservice_args.get('ms_data_property')])
                 else:
                     rst_data = rst
 
@@ -240,7 +243,7 @@ def get_data(path):
     try:
         url, microservice_args, args_to_forward = parse_qs(request)
         response_data = generate_response_data(url, microservice_args, args_to_forward)
-        return Response(response=response_data)
+        return Response(response=response_data, content_type="application/json")
     except Exception as e:
         exception_str = error_handling()
         logging.error(exception_str)
@@ -248,9 +251,6 @@ def get_data(path):
 
 
 if __name__ == '__main__':
-    # Set up logging
-    logger = log.init_logger('incremental-jsonsystem', os.getenv('LOGLEVEL', 'INFO'))
-
     FULL_URL_PATTERN = get_var('FULL_URL_PATTERN')
     UPDATED_URL_PATTERN = get_var('UPDATED_URL_PATTERN')
     UPDATED_PROPERTY = get_var('UPDATED_PROPERTY')
@@ -269,26 +269,8 @@ if __name__ == '__main__':
     elif auth_type.upper() == 'OAUTH2':
         SYSTEM = Oauth2System(config)
 
-
-
     if os.environ.get('WEBFRAMEWORK', '').lower() == 'flask':
         app.run(debug=True, host='0.0.0.0', port=int(
             os.environ.get('PORT', 5000)))
     else:
-        import cherrypy
-        app = log.add_access_logger(app, logger)
-        cherrypy.tree.graft(app, '/')
-
-        # Set the configuration of the web server to production mode
-        cherrypy.config.update({
-            'environment': 'production',
-            'engine.autoreload_on': False,
-            'log.screen': True,
-            'server.socket_port': int(os.environ.get("PORT", 5000)),
-            'server.socket_host': '0.0.0.0'
-        })
-
-        # Start the CherryPy WSGI web server
-        cherrypy.engine.start()
-        cherrypy.engine.block()
-        #app.run(threaded=True, debug=True, host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
+        serve(app,int(os.environ.get("PORT", 5000)))
