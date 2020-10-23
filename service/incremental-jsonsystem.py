@@ -11,7 +11,7 @@ import os
 import re
 import sys
 import urllib.parse
-from sesamutils import sesam_logger
+from sesamutils import sesam_logger, Dotdictify
 from sesamutils.flask import serve
 
 app = Flask(__name__)
@@ -105,14 +105,20 @@ def generate_response_data(url, microservice_args, args_to_forward):
                 rst_data = []
                 if microservice_args.get('ms_data_property'):
                     for entity in rst:
-                        rst_data.append(entity[microservice_args.get('ms_data_property')])
+                        entity_doctified = Dotdictify(entity)
+                        dp = entity_doctified.get(microservice_args.get('ms_data_property'))
+                        if isinstance(dp, list):
+                            rst_data.extend(dp)
+                        else:
+                            rst_data.append(dp)
                 else:
                     rst_data = rst
 
                 #apply sorting by updated_property
                 if microservice_args.get('ms_do_sort'):
                     def get_updated_property(myjson):
-                        return myjson[microservice_args.get('ms_updated_property')]
+                        myjson_dotdictified =  Dotdictify(myjson)
+                        return myjson_dotdictified.get(microservice_args.get('ms_updated_property'))
                     rst_data.sort(key=get_updated_property, reverse=False)
 
                 entity_count += len(rst_data)
@@ -130,7 +136,8 @@ def generate_response_data(url, microservice_args, args_to_forward):
                         if microservice_args.get('call_issued_time'):
                             data["_updated"] = microservice_args.get('call_issued_time')
                         elif microservice_args.get('ms_updated_property'):
-                            data["_updated"] = data[microservice_args.get('ms_updated_property')]
+                            data_dotdictified = Dotdictify(data)
+                            data["_updated"] = str(data_dotdictified.get(microservice_args.get('ms_updated_property')))
                         entities_to_return.append(data)
                 else:
                     entities_to_return = rst_data
