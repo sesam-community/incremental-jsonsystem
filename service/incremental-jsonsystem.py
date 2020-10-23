@@ -96,9 +96,9 @@ def generate_response_data(url, microservice_args, args_to_forward):
                     logger.debug("Error {}:{}".format(r.status_code, r.text))
                     abort(r.status_code, r.text)
 
-                rst = r.json() if r.status_code == 200 else []
-                if type(rst) == dict:
-                    rst = [rst]
+                rst = r.json() if r.ok else []
+                if isinstance(rst, dict):
+                    rst = [] if rst == {} else [rst]
                 logger.debug('Got {} entities'.format(len(rst)))
 
                 #read data from the data_property in the response json

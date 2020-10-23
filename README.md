@@ -20,7 +20,7 @@ can be used to:
 | UPDATED_URL_PATTERN |  pattern for the incremental run url. see URL_PATTERN below. | yes | n/a |
 | CONFIG | json with optional _headers_ and optional _oauth2_ fields which are also json. | yes | n/a |
 | AUTHENTICATION | OAUTH2 for oauth2 support. Any other value for no auth | no | n/a |
-| LOGLEVEL | Log level. One of "DEBUG|INFO|WARNING|ERROR|CRITICAL"| no | "INFO" |
+| LOG_LEVEL | Log level. One of "DEBUG|INFO|WARNING|ERROR|CRITICAL"| no | "INFO" |
 | UPDATED_PROPERTY | (DEPRECATED) use corresponding query parameter instead. | no | n/a |
 | OFFSET_BIGGER_AND_EQUAL | (DEPRECATED) use corresponding query parameter instead.| no | n/a |
 
