@@ -20,6 +20,7 @@ can be used to:
 | UPDATED_URL_PATTERN |  pattern for the incremental run url. see URL_PATTERN below. | yes | n/a |
 | CONFIG | json with optional _headers_ and optional _oauth2_ fields which are also json. | yes | n/a |
 | AUTHENTICATION | OAUTH2 for oauth2 support. Any other value for no auth | no | n/a |
+| LOG_LEVEL | Log level. One of "DEBUG|INFO|WARNING|ERROR|CRITICAL"| no | "INFO" |
 | UPDATED_PROPERTY | (DEPRECATED) use corresponding query parameter instead. | no | n/a |
 | OFFSET_BIGGER_AND_EQUAL | (DEPRECATED) use corresponding query parameter instead.| no | n/a |
 
@@ -46,9 +47,9 @@ There are the parameters that effect the way this microservice works. They are a
 | -------------------|---------------------|:------------:|:-----------:|
 | ms_since_param_at_src | the name of the query parameter at the source system that corresponds to sesam's _since_ parameter | no | n/a |
 | ms_limit_param_at_src | the name of the query parameter at the source system that corresponds to sesam's _limit_ parameter | no | n/a |
-| ms_updated_property | the name of the field that will be read into \_updated field for each entity | no | n/a |
+| ms_updated_property | the name of the field that will be read into \_updated field for each entity. Supports dot notation. | no | n/a |
 | ms_use_currenttime_as_updated | sometimes the source does not expose _updated_ date. In such cases, this flag can be set to _true_ to use currenttimestamp as the _updated value. | no | n/a |
-| ms_data_property | the name of the field from which the entities will be read from  | no | n/a |
+| ms_data_property | the path to the field from which the entities will be read. Supports dot notation. | no | n/a |
 | ms_do_sort | flag to get output sorted after \_updated field. Values: _true_/_false_. Applies to the page that is being retrieved only, hence upon pagination sorting is guaranteed only if the source delivers entities sorted | no | _false_ |
 | ms_offset_bigger_and_equal | set to _true_ to get the entities that are _greater than_ the offset value instead of _greater-than-or-equals_. The source systems behaviour should be taken into account here. Works for offset values of type integer only. Values: _true_/_false_ | no | _false_ |
 | ms_pagenum_param_at_src | if pagination is applicable,the name of the query parameter for the page number. Required to activate pagination along with the "page number parameter" so that succeeding pages would be returned as well | no | n/a |
@@ -125,7 +126,7 @@ system and pipe
         "is_chronological": true,
         "is_since_comparable": true,
         "supports_since": true,
-        "url": "mypath/yourpath/ourpath?ms_since_param_at_src=updated_since&ms_updated_property=updated_at&ms_do_sort=true&pagesize=50"
+        "url": "mypath/yourpath/ourpath?ms_data_property=property1.property2&ms_since_param_at_src=updated_since&ms_updated_property=updated_at&ms_do_sort=true&pagesize=50"
   },
   "transform":  [...]
 }
