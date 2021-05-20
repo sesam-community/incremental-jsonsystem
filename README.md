@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/sesam-community/incremental-jsonsystem.svg?branch=master)](https://travis-ci.org/sesam-community/incremental-jsonsystem)
+[![SesamCommunity CI&CD](https://github.com/sesam-community/incremental-jsonsystem/actions/workflows/sesam-community-ci-cd.yml/badge.svg)](https://github.com/sesam-community/incremental-jsonsystem/actions/workflows/sesam-community-ci-cd.yml)
 
 # incremental-jsonsystem
 proxy microservice that implements [SESAM pull protocol](https://docs.sesam.io/json-pull.html#requests) on a json source system.
